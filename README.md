@@ -1,5 +1,11 @@
 # CicadaAIO
 
+Finally decided to open source this, as it's a little shame for this code to go to waste. As this was basically in between versions/stripped of a lot of functionality prior to being open sourced, as well as quickly patched for the Louis Vuitton drop, some of the code is messy/nonfunctional. 
+
+Either way, it's not intended to be ran as my net/http and utls forks are not (yet) open sourced.
+
+All modules removed except Louis Vuitton and Walmart.
+
 # Commands
 
 ```
