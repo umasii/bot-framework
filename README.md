@@ -13,3 +13,5 @@ On Linux:
 ```
 go build . && ./framework -r "all"
 ```
+
+Credits to https://github.com/g4cko, https://github.com/trrai, as well as https://github.com/Epacity for the module code.
