@@ -1,0 +1,27 @@
+[
+  {
+    "GroupName": "af1",
+    "GroupID": 1,
+    "Tasks": [
+      {
+        "Mode": "Litty1",
+        "TaskID": 1,
+        "GroupID": 1,
+        "ProfileGroupID": 1,
+        "ProfileID": 1,
+        "ProxyGroupID": 1,
+        "Site": "Louis Vuitton",
+        "Product": {
+          "ProductName": "",
+          "Identifier": "1A9V8A",
+          "Color": "",
+          "Size": "",
+          "Qty": 1,
+          "PriceCheck": 600000
+        },
+        "MonitorDelay": 3000,
+        "RetryDelay": 3000
+      }
+    ]
+  }
+]

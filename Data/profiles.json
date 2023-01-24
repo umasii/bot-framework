@@ -1,0 +1,48 @@
+[
+  {
+    "GroupName": "test",
+    "GroupID": 1,
+    "Profiles": [
+      {
+        "ProfileID": 1,
+        "GroupName": "test",
+        "GroupID": 1,
+        "ProfileName": "TestProfile",
+        "Email": "",
+        "Billing": {
+          "CardHolder": "",
+          "CardNumber": "",
+          "ExpMonth": "",
+          "ExpYear": "",
+          "CVC": "",
+          "BillingAddress": {
+            "FirstName": "",
+            "LastName": "",
+            "Phone": "",
+            "Address": "",
+            "Address2": "",
+            "City": "",
+            "State": "",
+            "Country": "",
+            "PostalCode": ""
+          }
+        },
+        "Shipping": {
+          "FirstName": "",
+          "LastName": "",
+          "Phone": "",
+          "Address": "",
+          "Address2": "",
+          "City": "",
+          "State": "",
+          "Country": "",
+          "PostalCode": ""
+        },
+        "Options": {
+          "SameBillingAsShiping": true,
+          "OnlyOneCheckout": false
+        }
+      }
+    ]
+  }
+]
