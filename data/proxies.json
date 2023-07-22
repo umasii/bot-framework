@@ -1,0 +1,8 @@
+[
+  {
+    "GroupName": "test",
+    "GroupID": 1,
+    "IsMonitoringProxies": true,
+    "Proxies": []
+  }
+]
