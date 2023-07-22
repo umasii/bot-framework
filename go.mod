@@ -1,15 +1,15 @@
-module github.com/cicadaaio/LVBot
+module github.com/umasii/bot-framework
 
 go 1.18
 
 require (
 	github.com/PrismAIO/go.uuid v1.2.0
 	github.com/andersfylling/snowflake v1.3.0
-	github.com/cicadaaio/2cap v0.0.0-20210618050852-831eef3e1732
-	github.com/cicadaaio/captcha v0.0.0-20211220051322-9228b5f60e6b
-	github.com/cicadaaio/httpclient v0.0.0-20220716025509-7d0125691e89
-	github.com/cicadaaio/utls v0.0.0-20220716022947-a3fef602e29e
-	github.com/cicadaaio/walmart-encryption v0.0.0-20210607175137-e88a145a1ed4
+	github.com/umasii/2cap v0.0.0-20210618050852-831eef3e1732
+	github.com/umasii/captcha v0.0.0-20211220051322-9228b5f60e6b
+	github.com/umasii/httpclient v0.0.0-20220716025509-7d0125691e89
+	github.com/umasii/utls v0.0.0-20220716022947-a3fef602e29e
+	github.com/umasii/walmart-encryption v0.0.0-20210607175137-e88a145a1ed4
 	github.com/durango/go-credit-card v0.0.0-20220404131259-a9e175ba4082
 	github.com/getsentry/sentry-go v0.13.0
 	github.com/gwatts/rootcerts v0.0.0-20220501184621-6eac2dff0b8d

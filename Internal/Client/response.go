@@ -1,8 +1,9 @@
-package Client
+package client
 
 import (
-	"github.com/cicadaaio/httpclient/net/http"
 	"net/url"
+
+	"github.com/cicadaaio/httpclient/net/http"
 )
 
 type Response struct {

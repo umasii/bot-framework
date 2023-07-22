@@ -1,20 +1,20 @@
 package cardidentification
 
 import (
-	"errors"
+	goErrors "errors"
 	"strings"
 
 	ccID "github.com/durango/go-credit-card"
-	"github.com/cicadaaio/LVBot/Internal/Errors"
-	"github.com/cicadaaio/LVBot/Internal/Profiles"
+	"github.com/umasii/bot-framework/internal/errors"
+	profiles "github.com/umasii/bot-framework/internal/profiles"
 )
 
-func CreditCardType(profile *Profiles.Profile) (string, error) {
+func CreditCardType(profile *profiles.Profile) (string, error) {
 	card := ccID.Card{Number: strings.ReplaceAll(profile.Billing.CardNumber, " ", ""), Cvv: profile.Billing.CVC, Month: profile.Billing.ExpMonth, Year: profile.Billing.ExpYear}
 	err := card.Method()
 
 	if err != nil {
-		return "", Errors.Handler(errors.New("Failed to ID card"))
+		return "", errors.Handler(goErrors.New("Failed to ID card"))
 	}
 
 	return card.Company.Short, nil

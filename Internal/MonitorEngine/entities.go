@@ -1,4 +1,4 @@
-package MonitorEngine
+package monitorengine
 
 type MonitorResp struct {
 	CurrentStock bool

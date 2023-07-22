@@ -1,4 +1,4 @@
-package Certs
+package certs
 
 // Generated using github.com/gwatts/rootcerts/gencert
 // Generated on Tue, 01 Jun 2021 18:21:10 +0000

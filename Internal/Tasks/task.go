@@ -1,24 +1,23 @@
-package Tasks
+package tasks
 
 import (
 	"context"
-	"errors"
+	goErrors "errors"
 	"fmt"
 	"log"
 	"net/url"
 	"strconv"
 
-	"github.com/cicadaaio/LVBot/CMD/DataStores/ProfileStore"
-	"github.com/cicadaaio/LVBot/CMD/DataStores/ProxyStore"
-	"github.com/cicadaaio/LVBot/Internal/ActivityApi"
-	"github.com/cicadaaio/LVBot/Internal/Client"
-	"github.com/cicadaaio/LVBot/Internal/Errors"
-	"github.com/cicadaaio/LVBot/Internal/Helpers/Utilities/cardidentification"
-	"github.com/cicadaaio/LVBot/Internal/Products"
-	"github.com/cicadaaio/LVBot/Internal/Profiles"
-	"github.com/cicadaaio/LVBot/Internal/Proxies"
-
-	"github.com/cicadaaio/LVBot/Internal/Certs"
+	"github.com/umasii/bot-framework/cmd/datastores/profilestore"
+	"github.com/umasii/bot-framework/cmd/datastores/proxystore"
+	"github.com/umasii/bot-framework/internal/activityapi"
+	"github.com/umasii/bot-framework/internal/certs"
+	"github.com/umasii/bot-framework/internal/client"
+	"github.com/umasii/bot-framework/internal/errors"
+	"github.com/umasii/bot-framework/internal/helpers/utilities/cardidentification"
+	"github.com/umasii/bot-framework/internal/products"
+	"github.com/umasii/bot-framework/internal/profiles"
+	"github.com/umasii/bot-framework/internal/proxies"
 
 	tls "github.com/cicadaaio/utls"
 
@@ -39,12 +38,12 @@ const (
 
 type Task struct {
 	Stage         Stage              `json:"-"`
-	Client        Client.Client     `json:"-"`
-	Proxy         Proxies.Proxy      `json:"-"`
+	Client        client.Client     `json:"-"`
+	Proxy         proxies.Proxy      `json:"-"`
 	ProxyList     []string           `json:"-"`
 	Status        string             `json:"-"`
-	Profile       *Profiles.Profile  `json:"-"`
-	Jar           *Client.FJar      `json:"-"`
+	Profile       *profiles.Profile  `json:"-"`
+	Jar           *client.FJar      `json:"-"`
 	Tries         int                `json:"-"`
 	Ctx           context.Context    `json:"-"`
 	Cancel        context.CancelFunc `json:"-"`
@@ -59,7 +58,7 @@ type Task struct {
 	ProxyGroupID   int
 	ProxyGroupName string
 	Site           string
-	Product        Products.Product
+	Product        products.Product
 	MonitorDelay   time.Duration
 	RetryDelay     time.Duration
 }
@@ -105,7 +104,7 @@ func (t *Task) WrapExecutor(f func(), wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-t.Ctx.Done():
-			panic(errors.New("stopped"))
+			panic(goErrors.New("stopped"))
 
 		default:
 			f()
@@ -125,7 +124,7 @@ func (t *Task) WrapExecutor(f func(), wg *sync.WaitGroup) {
 }
 
 func (t *Task) Restart() {
-	t.UpdateStatus("Restarting", ActivityApi.LogLevel)
+	t.UpdateStatus("Restarting", activityapi.LogLevel)
 	t.Stage = Start
 	t.Initialize()
 }
@@ -158,21 +157,21 @@ func (t *Task) RotateProxy() {
 	} else {
 		for {
 			if t.Proxy.Raw != "" {
-				Proxies.SafeProxy.ReleaseProxy(t.Proxy.Raw)
+				proxies.SafeProxy.ReleaseProxy(t.Proxy.Raw)
 			}
 
-			rawProxy := Proxies.SafeProxy.GetProxy((t.ProxyList))
+			rawProxy := proxies.SafeProxy.GetProxy((t.ProxyList))
 
 			// Proxy is empty wait some time then get new
 			if rawProxy == "" {
-				t.UpdateStatus("Waiting for Proxy", ActivityApi.WarningLevel)
+				t.UpdateStatus("Waiting for Proxy", activityapi.WarningLevel)
 				t.WaitR()
 				continue
 			}
 
-			parsedProxy, err := Proxies.SafeProxy.ParseProxy(rawProxy)
+			parsedProxy, err := proxies.SafeProxy.ParseProxy(rawProxy)
 			if err != nil {
-				t.UpdateStatus(err.Error()+", retrying", ActivityApi.ErrorLevel)
+				t.UpdateStatus(err.Error()+", retrying", activityapi.ErrorLevel)
 				continue
 			}
 
@@ -187,7 +186,7 @@ func (t *Task) RotateProxy() {
 func (t *Task) InitializeClient() {
 	var err error
 	for {
-		t.Jar = Client.New()
+		t.Jar = client.New()
 		if err != nil {
 			continue
 		}
@@ -202,7 +201,7 @@ func (t *Task) InitializeClient() {
 			ForceAttemptHTTP2:     true,
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: false,
-				RootCAs:            Certs.ServerCertPool(),
+				RootCAs:            certs.ServerCertPool(),
 			},
 		}
 		t.Client.Client = &http.Client{Transport: tr, Jar: t.Jar}
@@ -227,9 +226,9 @@ func (t *Task) Initialize() {
 
 func (t *Task) InjectTaskData() {
 	for {
-		profileData, err := ProfileStore.GetProfileByID((*t).ProfileGroupID, (*t).ProfileID)
-		proxyGroup, err := ProxyStore.GetProxyGroupByID((*t).ProxyGroupID)
-		proxy, err := Proxies.SafeProxy.ParseProxy(Proxies.SafeProxy.GetProxy(proxyGroup.Proxies))
+		profileData, err := profilestore.GetProfileByID((*t).ProfileGroupID, (*t).ProfileID)
+		proxyGroup, err := proxystore.GetProxyGroupByID((*t).ProxyGroupID)
+		proxy, err := proxies.SafeProxy.ParseProxy(proxies.SafeProxy.GetProxy(proxyGroup.Proxies))
 
 		if err != nil {
 			continue
@@ -240,7 +239,7 @@ func (t *Task) InjectTaskData() {
 		(*t).Profile.Billing.CardType, err = cardidentification.CreditCardType((*t).Profile)
 
 		if err != nil {
-			Errors.Handler(err)
+			errors.Handler(err)
 			return
 		}
 
@@ -253,25 +252,25 @@ func (t *Task) InjectTaskData() {
 	}
 }
 
-func (t *Task) SendCheckoutData(checkoutStatus bool, checkoutResponse *Client.Response, additionalInfo interface{}) {
+func (t *Task) SendCheckoutData(checkoutStatus bool, checkoutResponse *client.Response, additionalInfo interface{}) {
 	req := t.Client.NewRequest()
 	req.Url = "http://127.0.0.1:3000/activity/"
-	payload := ActivityApi.RecpData{
-		UserInfo: ActivityApi.UserData{
+	payload := activityapi.RecpData{
+		UserInfo: activityapi.UserData{
 			UserID:        "TESTING", // TODO: get this from bot
 			ShippingState: t.Profile.Shipping.State,
 		},
-		Settings: ActivityApi.TaskSettings{
+		Settings: activityapi.TaskSettings{
 			Site:    t.Site,
 			Product: t.Product.Identifier,
 			Mode:    "Mode one",
 		},
-		Results: ActivityApi.TaskResults{
+		Results: activityapi.TaskResults{
 			CheckedOut:         checkoutStatus,
 			CheckoutStatusCode: checkoutResponse.StatusCode,
 			CheckoutMessage:    checkoutResponse.Body,
 		},
-		Instance: ActivityApi.InstanceInfo{
+		Instance: activityapi.InstanceInfo{
 			OS:                   "Mac",
 			TotalTasks:           0,
 			TotalTasksForProduct: 0,
@@ -287,10 +286,10 @@ func (t *Task) SendCheckoutData(checkoutStatus bool, checkoutResponse *Client.Re
 	resp, err := req.Do()
 
 	if err != nil {
-		Errors.Handler(err)
+		errors.Handler(err)
 	}
 
 	if resp.StatusCode != 200 {
-		Errors.Handler(errors.New("Failed to send checkout stat!, resp code" + resp.Status))
+		errors.Handler(goErrors.New("Failed to send checkout stat!, resp code" + resp.Status))
 	}
 }

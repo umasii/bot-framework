@@ -1,9 +1,9 @@
-package TaskEngine
+package taskengine
 
 import (
 	"sync"
 
-	Tasks3 "github.com/cicadaaio/LVBot/Internal/Tasks"
+	tasks "github.com/umasii/bot-framework/internal/tasks"
 )
 
 type TaskEngine struct {
@@ -18,7 +18,7 @@ type BotTaskGroup struct {
 	QtyActive     int
 	QtyCheckedOut int
 	QtyFailed     int
-	Tasks         []Tasks3.IBotTask
+	Tasks         []tasks.IBotTask
 	TaskWaitGroup sync.WaitGroup
 }
 

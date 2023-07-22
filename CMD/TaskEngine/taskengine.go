@@ -1,11 +1,11 @@
-package TaskEngine
+package taskengine
 
 import (
 	"errors"
 	"fmt"
 	"sync"
 
-	"github.com/cicadaaio/LVBot/Internal/Tasks"
+	"github.com/umasii/bot-framework/internal/tasks"
 )
 
 
@@ -37,7 +37,7 @@ func (te *TaskEngine) GetRunningTaskCount() int {
 	return taskCount
 }
 
-func (te *TaskEngine) StartSelectedTasks(wg *sync.WaitGroup, tasks *[]Tasks.IBotTask) {
+func (te *TaskEngine) StartSelectedTasks(wg *sync.WaitGroup, tasks *[]tasks.IBotTask) {
 	for i := range *tasks {
 		wg.Add(1)
 		go (*tasks)[i].WrapExecutor((*tasks)[i].Execute, wg)
@@ -53,7 +53,7 @@ func (te *TaskEngine) StartTasksInGroup(groupID int) {
 	}
 }
 
-func (te *TaskEngine) GetTasksInTaskGroup(groupID int) ([]Tasks.IBotTask, error){
+func (te *TaskEngine) GetTasksInTaskGroup(groupID int) ([]tasks.IBotTask, error){
 	for i := range te.TaskGroups {
 		if te.TaskGroups[i].GroupID == groupID {
 			return te.TaskGroups[i].Tasks, nil

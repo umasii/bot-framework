@@ -1,11 +1,11 @@
-package TaskEngine
+package taskengine
 
 import (
-	"github.com/cicadaaio/LVBot/CMD/DataStores/TaskStore"
-	"github.com/cicadaaio/LVBot/Internal/Tasks"
+	"github.com/umasii/bot-framework/cmd/datastores/taskstore"
+	"github.com/umasii/bot-framework/internal/tasks"
 )
 
-func (te *TaskEngine) loadTasksIntoEngine(taskGroups *[]Tasks.TaskGroup) {
+func (te *TaskEngine) loadTasksIntoEngine(taskGroups *[]tasks.TaskGroup) {
 	var botTaskGroups = []BotTaskGroup{}
 
 	for tgIndex := range *taskGroups {
@@ -24,13 +24,13 @@ func (te *TaskEngine) loadTasksIntoEngine(taskGroups *[]Tasks.TaskGroup) {
 	te.TaskGroups = botTaskGroups
 }
 
-func createTasksFromJSON() *[]Tasks.TaskGroup {
-	taskGroupsData := TaskStore.GetTaskGroups()
-	taskGroups := []Tasks.TaskGroup{}
+func createTasksFromJSON() *[]tasks.TaskGroup {
+	taskGroupsData := taskstore.GetTaskGroups()
+	taskGroups := []tasks.TaskGroup{}
 
 	for i := range taskGroupsData {
 
-		currentTaskGroup := Tasks.TaskGroup{
+		currentTaskGroup := tasks.TaskGroup{
 			GroupName: taskGroupsData[i].GroupName,
 			GroupID:   taskGroupsData[i].GroupID,
 			Tasks:     taskGroupsData[i].Tasks,

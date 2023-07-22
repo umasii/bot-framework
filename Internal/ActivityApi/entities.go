@@ -1,4 +1,4 @@
-package ActivityApi
+package activityapi
 
 const (
 	LogLevel          = "log"

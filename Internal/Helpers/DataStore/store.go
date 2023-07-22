@@ -7,7 +7,7 @@ import (
 	"path"
 
 	"github.com/kardianos/osext"
-	"github.com/cicadaaio/LVBot/Internal/Errors"
+	"github.com/umasii/bot-framework/internal/errors"
 )
 
 // Data should be in the same directory as the built.exe
@@ -23,7 +23,7 @@ func Write(data interface{}, storeName string) {
 	err := ioutil.WriteFile(GetStoreFilePath(storeName), file, 0644)
 
 	if err != nil {
-		Errors.Handler(err)
+		errors.Handler(err)
 	}
 }
 
@@ -31,7 +31,7 @@ func Read(data interface{}, storeName string) {
 	file, err := ioutil.ReadFile(GetStoreFilePath(storeName))
 
 	if err != nil {
-		Errors.Handler(err)
+		errors.Handler(err)
 	}
 
 	json.Unmarshal([]byte(file), data)

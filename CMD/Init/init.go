@@ -1,4 +1,4 @@
-package Init
+package init
 
 import (
 	"flag"
@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cicadaaio/LVBot/CMD/TaskEngine"
-	"github.com/cicadaaio/LVBot/Internal/Errors"
-	"github.com/cicadaaio/LVBot/Internal/Flags"
 	"github.com/getsentry/sentry-go"
+	taskengine "github.com/umasii/bot-framework/cmd/taskengine"
+	errors "github.com/umasii/bot-framework/internal/errors"
+	flags "github.com/umasii/bot-framework/internal/flags"
 )
 
 func InitSentry() {
@@ -35,14 +35,14 @@ func InitCicada() {
 
 	log.SetPrefix("framework: ")
 	log.SetFlags(0)
-	flag.Usage = Flags.Usage
+	flag.Usage = flags.Usage
 	flag.Parse()
 
-	if *Flags.FlagVersion {
-		fmt.Fprintln(os.Stderr, Flags.Version)
+	if *flags.FlagVersion {
+		fmt.Fprintln(os.Stderr, flags.Version)
 		os.Exit(2)
 	}
-	if *Flags.FlagHelp {
+	if *flags.FlagHelp {
 		flag.Usage()
 		os.Exit(2)
 	}
@@ -51,19 +51,19 @@ func InitCicada() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if *Flags.FlagRun != "" {
+	if *flags.FlagRun != "" {
 
-		TEngine := TaskEngine.TaskEngine{}
+		TEngine := taskengine.TaskEngine{}
 		TEngine.InitializeEngine()
 
-		if *Flags.FlagRun == "all" {
+		if *flags.FlagRun == "all" {
 			TEngine.StartAllTasks()
 		} else {
-			groups := strings.Split(*Flags.FlagRun, ",")
+			groups := strings.Split(*flags.FlagRun, ",")
 			for _, group := range groups {
 				igroup, err := strconv.Atoi(group)
 				if err != nil {
-					Errors.Handler(err)
+					errors.Handler(err)
 					log.Fatal(err)
 				}
 				TEngine.StartTasksInGroup(igroup)

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/cicadaaio/LVBot/CMD/Init"
+	Init "github.com/umasii/bot-framework/cmd/init"
 )
 
 func main() {

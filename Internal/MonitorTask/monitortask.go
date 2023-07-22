@@ -1,15 +1,15 @@
-package MonitorTask
+package monitortask
 
 import (
-	"github.com/cicadaaio/LVBot/CMD/DataStores/ProxyStore"
-	Client3 "github.com/cicadaaio/LVBot/Internal/Client"
-	Monitor "github.com/cicadaaio/LVBot/Internal/MonitorEngine"
+	"github.com/umasii/bot-framework/cmd/datastores/proxystore"
+	Client3 "github.com/umasii/bot-framework/internal/client"
+	Monitor "github.com/umasii/bot-framework/internal/monitorengine"
+	"github.com/umasii/bot-framework/internal/proxies"
 
-	//"github.com/cicadaaio/LVBot/Internal/MonitorEngine"
+	//"github.com/umasii/bot-framework/Internal/MonitorEngine"
 	"net/url"
 	"time"
 
-	"github.com/cicadaaio/LVBot/Internal/Proxies"
 	"github.com/cicadaaio/httpclient/net/http"
 	tls "github.com/cicadaaio/utls"
 	utls "github.com/cicadaaio/utls"
@@ -29,7 +29,7 @@ const (
 type MonitorTask struct {
 	Client      Client3.Client `json:"-"`
 	Jar         *cookiejar.Jar `json:"-"`
-	Proxy       Proxies.Proxy  `json:"-"`
+	Proxy       proxies.Proxy  `json:"-"`
 	ProxyList   []string       `json:"-"`
 	Delay       time.Duration
 	StockStatus *Monitor.MonitorResp
@@ -73,10 +73,10 @@ func (t *MonitorTask) RotateProxy() {
 	} else {
 		for {
 			if t.Proxy.Raw != "" {
-				Proxies.SafeProxy.ReleaseProxy(t.Proxy.Raw)
+				proxies.SafeProxy.ReleaseProxy(t.Proxy.Raw)
 			}
 
-			rawProxy := Proxies.SafeProxy.GetProxy(t.ProxyList)
+			rawProxy := proxies.SafeProxy.GetProxy(t.ProxyList)
 
 			// Proxy is empty wait some time then get new
 			if rawProxy == "" {
@@ -84,7 +84,7 @@ func (t *MonitorTask) RotateProxy() {
 				continue
 			}
 
-			parsedProxy, err := Proxies.SafeProxy.ParseProxy(rawProxy)
+			parsedProxy, err := proxies.SafeProxy.ParseProxy(rawProxy)
 			if err != nil {
 				continue
 			}
@@ -108,7 +108,7 @@ func (t *MonitorTask) Charles() {
 
 func (m *MonitorTask) Initialize() {
 
-	m.ProxyList = ProxyStore.GetMonitoringProxies()
+	m.ProxyList = proxystore.GetMonitoringProxies()
 	m.InitializeClient()
 	m.RotateProxy()
 }

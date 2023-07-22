@@ -1,4 +1,4 @@
-package Proxies
+package proxies
 
 import (
 	"errors"

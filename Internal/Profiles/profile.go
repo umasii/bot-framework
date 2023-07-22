@@ -1,4 +1,4 @@
-package Profiles
+package profiles
 
 type Profile struct {
 	ProfileID   int

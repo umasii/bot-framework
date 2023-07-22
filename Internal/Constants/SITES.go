@@ -1,9 +1,9 @@
-package Constants
+package constants
 
 import (
 	"reflect"
 
-	"github.com/cicadaaio/LVBot/Sites/louisvuitton"
+	"github.com/umasii/bot-framework/sites/louisvuitton"
 )
 
 var SITES = map[string]reflect.Type{

@@ -1,4 +1,4 @@
-package TaskStore
+package taskstore
 
 import (
 	"encoding/json"
@@ -6,10 +6,10 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/cicadaaio/LVBot/Internal/Constants"
-	"github.com/cicadaaio/LVBot/Internal/Errors"
-	store "github.com/cicadaaio/LVBot/Internal/Helpers/DataStore"
-	"github.com/cicadaaio/LVBot/Internal/Tasks"
+	constants "github.com/umasii/bot-framework/internal/constants"
+	errors "github.com/umasii/bot-framework/internal/errors"
+	store "github.com/umasii/bot-framework/internal/helpers/datastore"
+	tasks "github.com/umasii/bot-framework/internal/tasks"
 )
 
 type TaskGroupUnpacker struct {
@@ -20,15 +20,15 @@ type TaskGroupUnpacker struct {
 
 type TaskUnpacker struct {
 	Site  string
-	Value Tasks.IBotTask
+	Value tasks.IBotTask
 }
 
 func (c *TaskUnpacker) UnmarshalJSON(data []byte) error {
 
-	value, err := UnmarshalCustomValue(data, "Site", Constants.SITES)
+	value, err := UnmarshalCustomValue(data, "Site", constants.SITES)
 
 	if err != nil {
-		return Errors.Handler(err)
+		return errors.Handler(err)
 	}
 
 	c.Value = value
@@ -36,38 +36,38 @@ func (c *TaskUnpacker) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func UnmarshalCustomValue(data []byte, typeJsonField string, customTypes map[string]reflect.Type) (Tasks.IBotTask, error) {
+func UnmarshalCustomValue(data []byte, typeJsonField string, customTypes map[string]reflect.Type) (tasks.IBotTask, error) {
 	m := map[string]interface{}{}
 
 	if err := json.Unmarshal(data, &m); err != nil {
-		return nil, Errors.Handler(err)
+		return nil, errors.Handler(err)
 	}
 
 	typeName := m[typeJsonField].(string)
 
-	var value Tasks.IBotTask
+	var value tasks.IBotTask
 	if ty, found := customTypes[typeName]; found {
-		value = reflect.New(ty).Interface().(Tasks.IBotTask)
+		value = reflect.New(ty).Interface().(tasks.IBotTask)
 	}
 
 	valueBytes, err := json.Marshal(m)
 
 	if err != nil {
-		return nil, Errors.Handler(err)
+		return nil, errors.Handler(err)
 	}
 
 	if err = json.Unmarshal(valueBytes, &value); err != nil {
-		return nil, Errors.Handler(err)
+		return nil, errors.Handler(err)
 	}
 
-	return value, Errors.Handler(err)
+	return value, errors.Handler(err)
 }
 
 func readTasksJSONFile() ([]byte, error) {
 	jsonFile, err := os.Open(store.GetStoreFilePath("tasks"))
 
 	if err != nil {
-		return []byte{}, Errors.Handler(err)
+		return []byte{}, errors.Handler(err)
 	}
 
 	defer jsonFile.Close()
@@ -77,13 +77,13 @@ func readTasksJSONFile() ([]byte, error) {
 	return byteValue, nil
 }
 
-func CustomUnmarshalTasksFile() ([]Tasks.TaskGroup, error) {
-	taskGroups := []Tasks.TaskGroup{}
+func CustomUnmarshalTasksFile() ([]tasks.TaskGroup, error) {
+	taskGroups := []tasks.TaskGroup{}
 
 	jsonData, err := readTasksJSONFile()
 
 	if err != nil {
-		return taskGroups, Errors.Handler(err)
+		return taskGroups, errors.Handler(err)
 	}
 
 	var unpackedTaskGroups []TaskGroupUnpacker
@@ -91,15 +91,15 @@ func CustomUnmarshalTasksFile() ([]Tasks.TaskGroup, error) {
 	err = json.Unmarshal(jsonData, &unpackedTaskGroups)
 
 	if err != nil {
-		return taskGroups, Errors.Handler(err)
+		return taskGroups, errors.Handler(err)
 	}
 
 	for i := range unpackedTaskGroups {
 
-		currentTaskGroup := Tasks.TaskGroup{
+		currentTaskGroup := tasks.TaskGroup{
 			GroupName: unpackedTaskGroups[i].GroupName,
 			GroupID:   unpackedTaskGroups[i].GroupID,
-			Tasks:     []Tasks.IBotTask{},
+			Tasks:     []tasks.IBotTask{},
 		}
 
 		for j := range unpackedTaskGroups[i].Tasks {

@@ -3,17 +3,17 @@ package walmart
 import (
 	"encoding/hex"
 	"encoding/json"
-	"errors"
+	goErrors "errors"
 	"fmt"
 
-	"github.com/cicadaaio/LVBot/Internal/ActivityApi"
-	"github.com/cicadaaio/LVBot/Internal/Client"
-	Errors "github.com/cicadaaio/LVBot/Internal/Errors"
-	"github.com/cicadaaio/LVBot/Internal/Tasks"
+	"github.com/umasii/bot-framework/internal/activityapi"
+	"github.com/umasii/bot-framework/internal/client"
+	errors "github.com/umasii/bot-framework/internal/errors"
+	"github.com/umasii/bot-framework/internal/tasks"
 
 	api2captcha "github.com/cicadaaio/2cap"
 
-	WmMonitor "github.com/cicadaaio/LVBot/Monitors/walmart"
+	WmMonitor "github.com/umasii/bot-framework/monitors/walmart"
 
 	uuid "github.com/PrismAIO/go.uuid"
 
@@ -31,14 +31,14 @@ import (
 )
 
 type WalmartTask struct {
-	Tasks.Task
+	tasks.Task
 	Px            PxInfo `json:"-"`
 	Mode          WmMonitor.Mode
 	ItemId        string `json:"-"`
 	UserAgent     string `json:"-"` // Set specifically for WM as it requires PX cookies which are UA bound
 	secCookieWg   *sync.WaitGroup
 	checkoutRetry int         `json:"-"`
-	PrevStage     Tasks.Stage `json:"-"`
+	PrevStage     tasks.Stage `json:"-"`
 
 	StoreData SavedShippingRates `json:"-"`
 
@@ -63,7 +63,7 @@ func (e *WalmartTask) Execute() {
 		return
 	}
 	switch e.Stage {
-	case Tasks.Start:
+	case tasks.Start:
 		var err error
 
 		if err != nil {
@@ -101,7 +101,7 @@ func (e *WalmartTask) Execute() {
 	case Cart:
 		e.cart()
 
-	case Tasks.InStock:
+	case tasks.InStock:
 		e.startCheckout()
 
 	case Checkout:
@@ -122,7 +122,7 @@ func (e *WalmartTask) Execute() {
 }
 
 func (e *WalmartTask) AutoSolve() string {
-	e.UpdateStatus("Solving captcha...", ActivityApi.LogLevel)
+	e.UpdateStatus("Solving captcha...", activityapi.LogLevel)
 
 	cap := api2captcha.ReCaptcha{
 		Version:   "RecaptchaV3TaskProxyless",
@@ -139,10 +139,10 @@ func (e *WalmartTask) AutoSolve() string {
 		code, err := e.CaptchaClient.Solve(req)
 
 		if err == nil {
-			e.UpdateStatus("SOLVED Captcha "+code, ActivityApi.LogLevel)
+			e.UpdateStatus("SOLVED Captcha "+code, activityapi.LogLevel)
 			return code
 		} else {
-			Errors.Handler(err)
+			errors.Handler(err)
 		}
 
 	}
@@ -168,7 +168,7 @@ func (e *WalmartTask) pxLoop() {
 				continue
 			} else {
 
-				Errors.Handler(err)
+				errors.Handler(err)
 
 				continue
 			}
@@ -185,7 +185,7 @@ func (e *WalmartTask) getPxCookies() error {
 
 	uuid := string(hex.EncodeToString(uuid.NewV1().Bytes()))
 	uuidstr := uuid[:8] + "-" + uuid[8:12] + "-" + uuid[12:16] + "-" + uuid[16:20] + "-" + uuid[20:]
-	e.UpdateStatus("Getting PX cookies", ActivityApi.LogLevel)
+	e.UpdateStatus("Getting PX cookies", activityapi.LogLevel)
 
 	pxPacket := PxInfo{
 		Uuid:  &uuidstr,
@@ -206,7 +206,7 @@ func (e *WalmartTask) getPxCookies() error {
 	resp, err := req.Do()
 	if err != nil {
 		
-		return errors.New("failed to send px request")
+		return goErrors.New("failed to send px request")
 	}
 
 	if resp.StatusCode == 200 {
@@ -216,7 +216,7 @@ func (e *WalmartTask) getPxCookies() error {
 		err = json.Unmarshal([]byte(resp.Body), &pxApiResp)
 		if err != nil {
 
-			return errors.New("failed to process px data")
+			return goErrors.New("failed to process px data")
 		}
 
 		e.setPxCookie(pxApiResp.Px3)
@@ -227,27 +227,27 @@ func (e *WalmartTask) getPxCookies() error {
 		e.Px.Uuid = &pxApiResp.Uuid
 		e.Px.Vid = &pxApiResp.Vid
 
-		e.UpdateStatus("Successfully genned PX cookies", ActivityApi.LogLevel)
+		e.UpdateStatus("Successfully genned PX cookies", activityapi.LogLevel)
 		return nil
 
 	} else {
 
-		e.UpdateStatus("Failed to gen PX cookie", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to gen PX cookie", activityapi.ErrorLevel)
 		
 		e.WaitR()
-		return errors.New("failed to gen px cookie")
+		return goErrors.New("failed to gen px cookie")
 	}
 
 }
 
-func (e *WalmartTask) PxCheck(resp *Client.Response) bool {
+func (e *WalmartTask) PxCheck(resp *client.Response) bool {
 
 	if resp.StatusCode == 200 || resp.StatusCode == 201 { // I figure we should do this first thing so we don't waste time doing ioutil on fine requests
 		return false
 	}
 
 	if (resp.StatusCode == 412 || resp.StatusCode == 307) && strings.Contains(string(resp.Body), "blocked") {
-		e.UpdateStatus("PX Captcha blocked  ["+strconv.Itoa(resp.StatusCode)+"]", ActivityApi.ErrorLevel)
+		e.UpdateStatus("PX Captcha blocked  ["+strconv.Itoa(resp.StatusCode)+"]", activityapi.ErrorLevel)
 		e.CaptchaCount++
 		e.RotateProxy()
 		e.getPxCookies()
@@ -259,7 +259,7 @@ func (e *WalmartTask) PxCheck(resp *Client.Response) bool {
 
 func (e *WalmartTask) pxCap( /*captchaToken string*/) error {
 
-	e.UpdateStatus("Getting PX captcha cookies", ActivityApi.LogLevel)
+	e.UpdateStatus("Getting PX captcha cookies", activityapi.LogLevel)
 
 	e.Px.Site = "walmart"
 	e.Px.Proxy = e.Proxy.Formatted.String()
@@ -280,7 +280,7 @@ func (e *WalmartTask) pxCap( /*captchaToken string*/) error {
 
 	if err != nil {
 
-		return errors.New("failed to send PX Captcha request")
+		return goErrors.New("failed to send PX Captcha request")
 	}
 
 	if resp.StatusCode == 200 {
@@ -290,22 +290,22 @@ func (e *WalmartTask) pxCap( /*captchaToken string*/) error {
 		err = json.Unmarshal([]byte(resp.Body), &pxApiResp)
 		if err != nil {
 
-			Errors.Handler(err)
+			errors.Handler(err)
 
-			return errors.New("failed to process PX Captcha request")
+			return goErrors.New("failed to process PX Captcha request")
 		}
 
 		e.setPxCookie(pxApiResp.Px3)
 
-		e.UpdateStatus("Successfully solved PX captcha", ActivityApi.LogLevel)
+		e.UpdateStatus("Successfully solved PX captcha", activityapi.LogLevel)
 		return nil
 
 	} else {
 
-		e.UpdateStatus("Failed to process PX Captcha data", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to process PX Captcha data", activityapi.ErrorLevel)
 
 		e.WaitR()
-		return errors.New("")
+		return goErrors.New("")
 	}
 
 }
@@ -362,8 +362,8 @@ func (e *WalmartTask) genShippingRates() {
 	resp, err := req.Do()
 
 	if err != nil {
-		e.UpdateStatus("Failed to send shipping rates request", ActivityApi.ErrorLevel)
-		Errors.Handler(err)
+		e.UpdateStatus("Failed to send shipping rates request", activityapi.ErrorLevel)
+		errors.Handler(err)
 		return
 	}
 
@@ -372,14 +372,14 @@ func (e *WalmartTask) genShippingRates() {
 	err = json.Unmarshal([]byte(resp.Body), &shippingReqResp)
 
 	if err != nil {
-		e.UpdateStatus("Failed to unpack shipping rate response", ActivityApi.ErrorLevel)
-		Errors.Handler(err)
+		e.UpdateStatus("Failed to unpack shipping rate response", activityapi.ErrorLevel)
+		errors.Handler(err)
 		e.WaitR()
 		return
 	}
 
 	if len(shippingReqResp.Stores) == 0 {
-		e.UpdateStatus("Failed to get valid shipping rates response... Rotating proxy", ActivityApi.ErrorLevel) // I've found this happens on bad ips for whatever reason
+		e.UpdateStatus("Failed to get valid shipping rates response... Rotating proxy", activityapi.ErrorLevel) // I've found this happens on bad ips for whatever reason
 		e.RotateProxy()
 		e.WaitR()
 		return
@@ -394,7 +394,7 @@ func (e *WalmartTask) genShippingRates() {
 	}
 
 	if goodStore == "" {
-		e.UpdateStatus("Failed to get valid shipping rates... Please make sure your shipping address is supported by US Walmart.", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to get valid shipping rates... Please make sure your shipping address is supported by US Walmart.", activityapi.ErrorLevel)
 		e.WaitR()
 		return // We need to stop this task here
 	}
@@ -413,14 +413,14 @@ func (e *WalmartTask) genShippingRates() {
 		"",
 	}
 
-	e.UpdateStatus("Successfully genned shipping rates", ActivityApi.LogLevel)
+	e.UpdateStatus("Successfully genned shipping rates", activityapi.LogLevel)
 	e.Stage = GetCart
 
 }
 
 func (e *WalmartTask) genAccount() {
 
-	e.UpdateStatus("Genning Walmart account", ActivityApi.LogLevel)
+	e.UpdateStatus("Genning Walmart account", activityapi.LogLevel)
 	emailSplit := strings.Split(e.Profile.Email, "@")
 	rand.Seed(time.Now().UnixNano())
 
@@ -467,19 +467,19 @@ func (e *WalmartTask) genAccount() {
 	resp, err := req.Do()
 
 	if err != nil {
-		Errors.Handler(err)
-		e.UpdateStatus("Failed to send account request", ActivityApi.ErrorLevel)
+		errors.Handler(err)
+		e.UpdateStatus("Failed to send account request", activityapi.ErrorLevel)
 		e.WaitR()
 		return
 	}
 
 	if e.PxCheck(resp) == false {
 		e.Stage = ShippingRates
-		e.UpdateStatus("Successfully genned account", ActivityApi.LogLevel)
+		e.UpdateStatus("Successfully genned account", activityapi.LogLevel)
 	} else {
-		Errors.Handler(err)
+		errors.Handler(err)
 
-		e.UpdateStatus("Failed to gen account", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to gen account", activityapi.ErrorLevel)
 		e.WaitR()
 		return
 	}
@@ -487,7 +487,7 @@ func (e *WalmartTask) genAccount() {
 }
 
 func (e *WalmartTask) getCart() {
-	e.UpdateStatus("Getting payment cookies..", ActivityApi.LogLevel)
+	e.UpdateStatus("Getting payment cookies..", activityapi.LogLevel)
 
 	req := e.Client.NewRequest()
 	req.Url = "https://www.walmart.com/cart"
@@ -514,21 +514,21 @@ func (e *WalmartTask) getCart() {
 	resp, err := req.Do()
 
 	if err != nil {
-		Errors.Handler(err)
+		errors.Handler(err)
 		e.WaitR()
 		return
 	}
 
 	if e.PxCheck(resp) == false {
 		e.Stage = PreEncrypt
-		e.UpdateStatus("Successfully got payment cookies", ActivityApi.LogLevel)
+		e.UpdateStatus("Successfully got payment cookies", activityapi.LogLevel)
 	}
 	return
 
 }
 
 func (e *WalmartTask) getCheckout(wg *sync.WaitGroup) {
-	e.UpdateStatus("Getting security cookies...", ActivityApi.LogLevel)
+	e.UpdateStatus("Getting security cookies...", activityapi.LogLevel)
 	req := e.Client.NewRequest()
 	req.Url = "https://www.walmart.com/checkout"
 	req.Method = "GET"
@@ -556,7 +556,7 @@ func (e *WalmartTask) getCheckout(wg *sync.WaitGroup) {
 	resp, err := req.Do()
 
 	if err != nil {
-		Errors.Handler(err)
+		errors.Handler(err)
 		e.WaitR()
 		return
 	}
@@ -564,7 +564,7 @@ func (e *WalmartTask) getCheckout(wg *sync.WaitGroup) {
 	if e.PxCheck(resp) == false {
 
 		wg.Done()
-		e.UpdateStatus("Successfully got security cookies!", ActivityApi.LogLevel)
+		e.UpdateStatus("Successfully got security cookies!", activityapi.LogLevel)
 		return
 
 	} else {
@@ -630,9 +630,9 @@ func (e *WalmartTask) getPieKeys() (error, PieKeyResp) {
 
 	if err != nil {
 
-		Errors.Handler(err)
+		errors.Handler(err)
 
-		return errors.New("failed to send payment keys request"), PieKeyResp{}
+		return goErrors.New("failed to send payment keys request"), PieKeyResp{}
 		e.WaitR()
 	}
 
@@ -663,13 +663,13 @@ func (e *WalmartTask) getPieKeys() (error, PieKeyResp) {
 }
 
 func (e *WalmartTask) preEncrypt() {
-	e.UpdateStatus("Encrypting payment", ActivityApi.LogLevel)
+	e.UpdateStatus("Encrypting payment", activityapi.LogLevel)
 
 	for i := 1; i <= 2; i++ {
 		err, res := e.getPieKeys()
 
 		if err != nil {
-			Errors.Handler(err)
+			errors.Handler(err)
 			return
 		}
 
@@ -696,7 +696,7 @@ func (e *WalmartTask) preEncrypt() {
 
 	}
 
-	e.UpdateStatus("Successfully encrypted payment", ActivityApi.LogLevel)
+	e.UpdateStatus("Successfully encrypted payment", activityapi.LogLevel)
 
 	e.Stage = CC
 
@@ -704,7 +704,7 @@ func (e *WalmartTask) preEncrypt() {
 
 func (e *WalmartTask) submitCC() {
 
-	e.UpdateStatus("Submitting first round of payment", ActivityApi.LogLevel)
+	e.UpdateStatus("Submitting first round of payment", activityapi.LogLevel)
 
 	submitCC := ccdata{
 		e.Profile.Shipping.Address,
@@ -746,8 +746,8 @@ func (e *WalmartTask) submitCC() {
 	resp, err := req.Do()
 
 	if err != nil {
-		Errors.Handler(err)
-		e.UpdateStatus("Failed to send round 1 payment request", ActivityApi.ErrorLevel)
+		errors.Handler(err)
+		e.UpdateStatus("Failed to send round 1 payment request", activityapi.ErrorLevel)
 		e.WaitR()
 
 		return
@@ -755,7 +755,7 @@ func (e *WalmartTask) submitCC() {
 
 	if e.PxCheck(resp) == false {
 
-		e.UpdateStatus("Successfully submitted round 1 payment", ActivityApi.LogLevel)
+		e.UpdateStatus("Successfully submitted round 1 payment", activityapi.LogLevel)
 		var ccResp PaymentResp
 
 		err = json.Unmarshal([]byte(resp.Body), &ccResp)
@@ -766,7 +766,7 @@ func (e *WalmartTask) submitCC() {
 
 	} else {
 
-		e.UpdateStatus("Failed to submit round 1 payment", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to submit round 1 payment", activityapi.ErrorLevel)
 
 		e.WaitR()
 		return
@@ -778,7 +778,7 @@ func (e *WalmartTask) preAdd() {
 
 	addToListData := atcParams{e.Product.Identifier, e.Product.Qty}
 
-	e.UpdateStatus("Pre-adding product", ActivityApi.LogLevel)
+	e.UpdateStatus("Pre-adding product", activityapi.LogLevel)
 
 	req := e.Client.NewRequest()
 	req.Url = "https://www.walmart.com/api/v3/cart/:CRT/items"
@@ -804,8 +804,8 @@ func (e *WalmartTask) preAdd() {
 	resp, err := req.Do()
 
 	if err != nil {
-		Errors.Handler(err)
-		e.UpdateStatus("Failed to send pre-add request", ActivityApi.ErrorLevel)
+		errors.Handler(err)
+		e.UpdateStatus("Failed to send pre-add request", activityapi.ErrorLevel)
 
 		e.WaitR()
 
@@ -817,11 +817,11 @@ func (e *WalmartTask) preAdd() {
 		preAddResp := preAdd{}
 		err = json.Unmarshal([]byte(resp.Body), &preAddResp)
 		e.ItemId = preAddResp.SavedItems[0].ItemId
-		e.UpdateStatus("Successfully pre-added product", ActivityApi.LogLevel)
+		e.UpdateStatus("Successfully pre-added product", activityapi.LogLevel)
 		e.Stage = Cart
 	} else {
 
-		e.UpdateStatus("Failed to pre-add product", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to pre-add product", activityapi.ErrorLevel)
 		if e.Tries > 3 {
 			e.Stop()
 			return
@@ -835,7 +835,7 @@ func (e *WalmartTask) preAdd() {
 
 func (e *WalmartTask) cart() {
 
-	e.UpdateStatus("Adding to cart", ActivityApi.LogLevel)
+	e.UpdateStatus("Adding to cart", activityapi.LogLevel)
 
 	atcData := atcParams{e.Product.Identifier, 1}
 
@@ -860,8 +860,8 @@ func (e *WalmartTask) cart() {
 
 	resp, err := req.Do()
 	if err != nil {
-		Errors.Handler(err)
-		e.UpdateStatus("Failed to send pre-cart request", ActivityApi.ErrorLevel)
+		errors.Handler(err)
+		e.UpdateStatus("Failed to send pre-cart request", activityapi.ErrorLevel)
 		e.WaitR()
 		return
 	}
@@ -873,7 +873,7 @@ func (e *WalmartTask) cart() {
 		err = json.Unmarshal([]byte(resp.Body), &atcJsonResp)
 
 		if err != nil {
-			e.UpdateStatus("Failed to get valid cart resp...  ["+strconv.Itoa(resp.StatusCode)+"]", ActivityApi.ErrorLevel)
+			e.UpdateStatus("Failed to get valid cart resp...  ["+strconv.Itoa(resp.StatusCode)+"]", activityapi.ErrorLevel)
 			e.WaitR()
 			return
 		}
@@ -881,7 +881,7 @@ func (e *WalmartTask) cart() {
 		e.ItemId = atcJsonResp.Items[0].Id
 
 		if int(atcJsonResp.Cart.Totals.SubTotal) > e.Product.PriceCheck {
-			e.UpdateStatus("Added to cart but exceeded price limit! ["+strconv.Itoa(resp.StatusCode)+"]", ActivityApi.ErrorLevel)
+			e.UpdateStatus("Added to cart but exceeded price limit! ["+strconv.Itoa(resp.StatusCode)+"]", activityapi.ErrorLevel)
 
 			e.PrevStage = Cart
 			e.Stage = DeleteItem
@@ -891,23 +891,23 @@ func (e *WalmartTask) cart() {
 		e.PrevStage = Cart
 		e.Stage = Checkout
 
-		e.UpdateStatus("Successfully pre Carted  ["+strconv.Itoa(resp.StatusCode)+"]", ActivityApi.LogLevel)
+		e.UpdateStatus("Successfully pre Carted  ["+strconv.Itoa(resp.StatusCode)+"]", activityapi.LogLevel)
 
 	} else if strings.Contains(resp.Body, "ITEM_COUNT_MAX_LIMIT") {
 
 		e.Product.Qty = 1 // TODO: Should this be an option? IE: if the bot can't add the qty a user specified, should we set the qty to 1 or just not go for it?
-		e.UpdateStatus("Failed to add to cart due to item limit, retrying with qty 1 ["+strconv.Itoa(resp.StatusCode)+"]", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to add to cart due to item limit, retrying with qty 1 ["+strconv.Itoa(resp.StatusCode)+"]", activityapi.ErrorLevel)
 		e.WaitR()
 		return
 
 	} else if strings.Contains(resp.Body, "No fulfillment option has availability") {
 
-		e.UpdateStatus("Product is out of stock ["+strconv.Itoa(resp.StatusCode)+"]", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Product is out of stock ["+strconv.Itoa(resp.StatusCode)+"]", activityapi.ErrorLevel)
 		e.WaitR()
 		return
 
 	} else if e.PxCheck(resp) {
-		e.UpdateStatus("Failed to add to cart... ["+strconv.Itoa(resp.StatusCode)+"]", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to add to cart... ["+strconv.Itoa(resp.StatusCode)+"]", activityapi.ErrorLevel)
 
 		e.WaitR()
 		return
@@ -917,7 +917,7 @@ func (e *WalmartTask) cart() {
 
 func (e *WalmartTask) startCheckout() {
 
-	e.UpdateStatus("Starting checkout", ActivityApi.LogLevel)
+	e.UpdateStatus("Starting checkout", activityapi.LogLevel)
 	req := e.Client.NewRequest()
 	req.SetJSONBody(e.StoreData)
 	req.Method = "POST"
@@ -955,7 +955,7 @@ func (e *WalmartTask) startCheckout() {
 	resp, err := req.Do()
 
 	if err != nil {
-		Errors.Handler(err)
+		errors.Handler(err)
 		e.WaitR()
 
 		return
@@ -968,15 +968,15 @@ func (e *WalmartTask) startCheckout() {
 		err = json.Unmarshal([]byte(resp.Body), &checkoutViewRespJson)
 
 		if err != nil {
-			e.UpdateStatus("Failed to get valid checkout resp... ["+strconv.Itoa(resp.StatusCode)+"]", ActivityApi.ErrorLevel)
+			e.UpdateStatus("Failed to get valid checkout resp... ["+strconv.Itoa(resp.StatusCode)+"]", activityapi.ErrorLevel)
 			e.WaitR()
 			return
 		}
 
-		e.UpdateStatus("Successfully loaded checkout ["+strconv.Itoa(resp.StatusCode)+"]", ActivityApi.LogLevel)
+		e.UpdateStatus("Successfully loaded checkout ["+strconv.Itoa(resp.StatusCode)+"]", activityapi.LogLevel)
 
 		if int(checkoutViewRespJson.Summary.SubTotal) > e.Product.PriceCheck {
-			e.UpdateStatus("Got to checkout but exceeded price check! restarting session ["+strconv.Itoa(resp.StatusCode)+"]", ActivityApi.ErrorLevel)
+			e.UpdateStatus("Got to checkout but exceeded price check! restarting session ["+strconv.Itoa(resp.StatusCode)+"]", activityapi.ErrorLevel)
 			e.PrevStage = Checkout
 			e.Stage = DeleteItem
 			return
@@ -991,7 +991,7 @@ func (e *WalmartTask) startCheckout() {
 		return
 
 	} else {
-		e.UpdateStatus("Failed to go to checkout... Retrying... ["+strconv.Itoa(resp.StatusCode)+"]", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to go to checkout... Retrying... ["+strconv.Itoa(resp.StatusCode)+"]", activityapi.ErrorLevel)
 		e.WaitR()
 		return
 	}
@@ -1000,7 +1000,7 @@ func (e *WalmartTask) startCheckout() {
 
 func (e *WalmartTask) submitShipping() {
 
-	e.UpdateStatus("Submitting shipping", ActivityApi.LogLevel)
+	e.UpdateStatus("Submitting shipping", activityapi.LogLevel)
 	shippingData := shippingInfo{
 		e.Profile.Shipping.Address,
 		e.Profile.Shipping.Address2,
@@ -1041,23 +1041,23 @@ func (e *WalmartTask) submitShipping() {
 	resp, err := req.Do()
 
 	if err != nil {
-		Errors.Handler(err)
-		e.UpdateStatus("Failed to send shipping request", ActivityApi.ErrorLevel)
+		errors.Handler(err)
+		e.UpdateStatus("Failed to send shipping request", activityapi.ErrorLevel)
 		e.WaitR()
 		return
 	}
 
 	if e.PxCheck(resp) == false {
 
-		e.UpdateStatus("Successfully submitted shipping", ActivityApi.LogLevel)
+		e.UpdateStatus("Successfully submitted shipping", activityapi.LogLevel)
 		e.Stage = Payment
 
 	} else if e.Tries == 3 {
-		e.UpdateStatus("Failed to submit shipping 3 times... ", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to submit shipping 3 times... ", activityapi.ErrorLevel)
 		e.WaitR()
 
 	} else {
-		e.UpdateStatus("Failed to submit shipping... Retrying...", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to submit shipping... Retrying...", activityapi.ErrorLevel)
 		e.WaitR()
 		return
 	}
@@ -1066,7 +1066,7 @@ func (e *WalmartTask) submitShipping() {
 
 func (e *WalmartTask) submitPayment() {
 
-	e.UpdateStatus("Submitting payment", ActivityApi.LogLevel)
+	e.UpdateStatus("Submitting payment", activityapi.LogLevel)
 
 	myPayment := payments{"CREDITCARD",
 		strings.ToUpper(e.Profile.Billing.CardType),
@@ -1113,8 +1113,8 @@ func (e *WalmartTask) submitPayment() {
 	resp, err := req.Do()
 
 	if err != nil {
-		Errors.Handler(err)
-		e.UpdateStatus("Failed to send payment request", ActivityApi.ErrorLevel)
+		errors.Handler(err)
+		e.UpdateStatus("Failed to send payment request", activityapi.ErrorLevel)
 		e.WaitR()
 
 		return
@@ -1122,16 +1122,16 @@ func (e *WalmartTask) submitPayment() {
 
 	if e.PxCheck(resp) == false {
 
-		e.UpdateStatus("Successfully submitted payment", ActivityApi.LogLevel)
+		e.UpdateStatus("Successfully submitted payment", activityapi.LogLevel)
 		e.Stage = Order
 
 	} else if e.Tries == 3 {
 
-		e.UpdateStatus("Failed to submit payment 3 times... ", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to submit payment 3 times... ", activityapi.ErrorLevel)
 		e.WaitR()
 
 	} else {
-		e.UpdateStatus("Failed to submit payment.. Retrying..", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to submit payment.. Retrying..", activityapi.ErrorLevel)
 		e.WaitR()
 		return
 	}
@@ -1141,7 +1141,7 @@ func (e *WalmartTask) submitPayment() {
 func (e *WalmartTask) submitOrder() {
 	e.checkoutRetry = e.checkoutRetry + 1
 
-	e.UpdateStatus("Submitting order", ActivityApi.LogLevel)
+	e.UpdateStatus("Submitting order", activityapi.LogLevel)
 
 	paymentInfo := voltagePayments{
 		"CREDITCARD",
@@ -1182,7 +1182,7 @@ func (e *WalmartTask) submitOrder() {
 	resp, err := req.Do()
 
 	if err != nil {
-		e.UpdateStatus("Failed to send order request", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to send order request", activityapi.ErrorLevel)
 		e.WaitR()
 
 		return
@@ -1190,7 +1190,7 @@ func (e *WalmartTask) submitOrder() {
 
 	if e.PxCheck(resp) == false {
 
-		e.UpdateStatus("Successfully submitted order", ActivityApi.LogLevel)
+		e.UpdateStatus("Successfully submitted order", activityapi.LogLevel)
 		// e.FireWebHook(true, []*discordhook.EmbedField{{
 		// 	Name:   "Mode",
 		// 	Value:  string(e.Mode),
@@ -1204,7 +1204,7 @@ func (e *WalmartTask) submitOrder() {
 
 		err = json.Unmarshal([]byte(resp.Body), &orderFail)
 
-		e.UpdateStatus(fmt.Sprintf("Failed to submit order. Reason: %s . Attempt %d out of 3 [%d]", orderFail.FailedReason, e.checkoutRetry, resp.StatusCode), ActivityApi.ErrorLevel)
+		e.UpdateStatus(fmt.Sprintf("Failed to submit order. Reason: %s . Attempt %d out of 3 [%d]", orderFail.FailedReason, e.checkoutRetry, resp.StatusCode), activityapi.ErrorLevel)
 		e.WaitR()
 
 		if e.Tries == 2 {
@@ -1225,7 +1225,7 @@ func (e *WalmartTask) submitOrder() {
 			// })
 
 			if strings.Contains(orderFail.FailedReason, "Item is no longer in stock") {
-				e.UpdateStatus("Failed to checkout due to out of stock error.", ActivityApi.ErrorLevel)
+				e.UpdateStatus("Failed to checkout due to out of stock error.", activityapi.ErrorLevel)
 				e.WaitR()
 
 			} else {
@@ -1265,20 +1265,20 @@ func (e *WalmartTask) deleteItem() {
 	resp, err := req.Do()
 
 	if err != nil {
-		e.UpdateStatus("Failed to send delete req", ActivityApi.ErrorLevel)
-		Errors.Handler(err)
+		e.UpdateStatus("Failed to send delete req", activityapi.ErrorLevel)
+		errors.Handler(err)
 		return
 	}
 
 	if resp.StatusCode != 200 {
-		e.UpdateStatus("Failed to delete item... retrying", ActivityApi.ErrorLevel)
+		e.UpdateStatus("Failed to delete item... retrying", activityapi.ErrorLevel)
 
-		Errors.Handler(errors.New("Failed to delete item, resp:" + resp.Body))
+		errors.Handler(goErrors.New("Failed to delete item, resp:" + resp.Body))
 		e.WaitR()
 		return
 	}
 
-	e.UpdateStatus("Succesfully deleted item out of price range", ActivityApi.LogLevel)
+	e.UpdateStatus("Succesfully deleted item out of price range", activityapi.LogLevel)
 	e.Stage = e.PrevStage
 	return
 

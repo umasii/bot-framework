@@ -11,10 +11,9 @@ import (
 
 	"net/url"
 
-	"github.com/cicadaaio/LVBot/Internal/ActivityApi"
-	"github.com/cicadaaio/LVBot/Internal/Tasks"
-
 	"github.com/tidwall/gjson"
+	"github.com/umasii/bot-framework/internal/activityapi"
+	"github.com/umasii/bot-framework/internal/tasks"
 
 	api2captcha "github.com/cicadaaio/2cap"
 )
@@ -30,7 +29,7 @@ func checkPage(shtml string) bool {
 }
 
 type LVTask struct {
-	Tasks.Task
+	tasks.Task
 	aVal string `json:"-"`
 	uVal string `json:"-"`
 	tVal string `json:"-"`
@@ -40,7 +39,7 @@ type LVTask struct {
 	CatalogRefId  string      `json:"-"`
 	UserAgent     string      `json:"-"` // we used website UA rather than LV app UA
 	checkoutRetry int32       `json:"-"`
-	PrevStage     Tasks.Stage `json:"-"`
+	PrevStage     tasks.Stage `json:"-"`
 	Region        string      `json:"-"` // for use on Asia/Europe drops (we only ran US though)
 	Mode          string      `json:"-"`
 	SensorData    string      `json:"-"`
@@ -79,7 +78,7 @@ func (e *LVTask) Execute() {
 	switch e.Mode {
 	case "Litty2":
 		switch e.Stage {
-		case Tasks.Start: // Tasks.Start is part of the Cicada framework, but no initialization is required
+		case tasks.Start: // tasks.Start is part of the Cicada framework, but no initialization is required
 			var err error
 
 			if err != nil {
@@ -123,7 +122,7 @@ func (e *LVTask) Execute() {
 
 	case "Litty1":
 		switch e.Stage {
-		case Tasks.Start:
+		case tasks.Start:
 
 			var err error
 
@@ -174,7 +173,7 @@ func (e *LVTask) Execute() {
 // We chose to fetch product information through an individual LVTask instead of a monitor task for simplicity
 // and due to there being 9 different products
 func (e *LVTask) getProduct() {
-	e.UpdateStatus("Fetching product", ActivityApi.LogLevel)
+	e.UpdateStatus("Fetching product", activityapi.LogLevel)
 
 	req := e.Client.NewRequest()
 	req.Url = "https://pass.louisvuitton.com/api/facade/api/eng-us/catalog/product/" + e.Product.Identifier // fetching through facade bypassed LV's blocking of web endpoints during drop time
@@ -208,14 +207,14 @@ func (e *LVTask) getProduct() {
 
 		return
 	} else {
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}
 }
 
 func (e *LVTask) getVariant() {
-	e.UpdateStatus("Fetching random in-stock variant", ActivityApi.LogLevel)
+	e.UpdateStatus("Fetching random in-stock variant", activityapi.LogLevel)
 
 	req := e.Client.NewRequest()
 	req.Url = "https://pass.louisvuitton.com/api/facade/api/eng-us/catalog/product/" + e.Product.Identifier
@@ -249,7 +248,7 @@ func (e *LVTask) getVariant() {
 
 		return
 	} else {
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}
@@ -257,7 +256,7 @@ func (e *LVTask) getVariant() {
 
 func (e *LVTask) getU() {
 
-	e.UpdateStatus("Getting Pixel", ActivityApi.LogLevel)
+	e.UpdateStatus("Getting Pixel", activityapi.LogLevel)
 	req := e.Client.NewRequest()
 	req.Url = e.PixelScriptURL
 	req.Method = "GET"
@@ -279,7 +278,7 @@ func (e *LVTask) getU() {
 	if err != nil {
 		// handle error, set next stage
 		log.Println(err)
-		e.UpdateStatus("Getting Pixel Error", ActivityApi.LogLevel)
+		e.UpdateStatus("Getting Pixel Error", activityapi.LogLevel)
 
 		return
 	}
@@ -336,7 +335,7 @@ func (e *LVTask) getU() {
 }
 
 func (e *LVTask) genPixelData() {
-	e.UpdateStatus("Submitting Pixel", ActivityApi.LogLevel)
+	e.UpdateStatus("Submitting Pixel", activityapi.LogLevel)
 
 	payload := genPixelData{
 		"https://us.louisvuitton.com/",
@@ -367,14 +366,14 @@ func (e *LVTask) genPixelData() {
 		e.Stage = AkamaiPixel
 		return
 	} else {
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}
 }
 
 func (e *LVTask) getAkamaiSensor() {
-	e.UpdateStatus("Generating Akamai sensor", ActivityApi.LogLevel)
+	e.UpdateStatus("Generating Akamai sensor", activityapi.LogLevel)
 
 	cookies := e.Jar.Cookies(lvUrl)
 
@@ -422,14 +421,14 @@ func (e *LVTask) getAkamaiSensor() {
 		return
 
 	} else {
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}
 }
 
 func (e *LVTask) getSecure() {
-	e.UpdateStatus("Getting homepage", ActivityApi.LogLevel)
+	e.UpdateStatus("Getting homepage", activityapi.LogLevel)
 
 	req := e.Client.NewRequest()
 	req.Url = e.SensorURL
@@ -466,14 +465,14 @@ func (e *LVTask) getSecure() {
 		return
 	}
 
-	e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+	e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 	e.WaitR()
 
 	return
 }
 
 func (e *LVTask) submitSensor() {
-	e.UpdateStatus("Submitting Akamai sensor", ActivityApi.LogLevel)
+	e.UpdateStatus("Submitting Akamai sensor", activityapi.LogLevel)
 
 	payload := sensorPayload{
 		e.SensorData,
@@ -539,14 +538,14 @@ func (e *LVTask) submitSensor() {
 		// set next stage
 		return
 	} else {
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}
 }
 
 func (e *LVTask) submitPixel() {
-	e.UpdateStatus("Submitting Akamai pixel", ActivityApi.LogLevel)
+	e.UpdateStatus("Submitting Akamai pixel", activityapi.LogLevel)
 
 	req := e.Client.NewRequest()
 	req.Url = e.PixelURL
@@ -581,14 +580,14 @@ func (e *LVTask) submitPixel() {
 		e.Stage = Akamai
 		return
 	} else {
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}
 }
 
 func (e *LVTask) login() {
-	e.UpdateStatus("Logging into account", ActivityApi.LogLevel)
+	e.UpdateStatus("Logging into account", activityapi.LogLevel)
 
 	payload := loginPayload{
 		e.Username,
@@ -642,14 +641,14 @@ func (e *LVTask) login() {
 		return
 
 	} else {
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}
 }
 
 func (e *LVTask) prepareCart() {
-	e.UpdateStatus("Preparing cart", ActivityApi.LogLevel)
+	e.UpdateStatus("Preparing cart", activityapi.LogLevel)
 
 	req := e.Client.NewRequest()
 	req.Url = "https://api.louisvuitton.com/api/eng-us/cart/prepare-order"
@@ -698,14 +697,14 @@ func (e *LVTask) prepareCart() {
 		return
 
 	} else {
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}
 }
 
 func (e *LVTask) getCard() {
-	e.UpdateStatus("Fetching payment method", ActivityApi.LogLevel)
+	e.UpdateStatus("Fetching payment method", activityapi.LogLevel)
 
 	req := e.Client.NewRequest()
 	req.Url = "https://api.louisvuitton.com/api/eng-us/account/credit-cards"
@@ -747,14 +746,14 @@ func (e *LVTask) getCard() {
 		return
 
 	} else {
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}
 }
 
 func (e *LVTask) getCart() {
-	e.UpdateStatus("Fetching cart", ActivityApi.LogLevel)
+	e.UpdateStatus("Fetching cart", activityapi.LogLevel)
 
 	req := e.Client.NewRequest()
 	req.Url = "https://api.louisvuitton.com/api/eng-us/cart/full"
@@ -801,14 +800,14 @@ func (e *LVTask) getCart() {
 		return
 
 	} else {
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}
 }
 
 func (e *LVTask) productUrl() {
-	e.UpdateStatus("Fetching product URL", ActivityApi.LogLevel)
+	e.UpdateStatus("Fetching product URL", activityapi.LogLevel)
 
 	req := e.Client.NewRequest()
 	req.Url = "https://us.louisvuitton.com/eng-us/products/lv-trainer-sneaker-nvprod3710063v/1AAHS3"
@@ -849,14 +848,14 @@ func (e *LVTask) productUrl() {
 		return
 
 	} else {
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}
 }
 
 func (e *LVTask) submitPayment() {
-	e.UpdateStatus("Submitting payment method", ActivityApi.LogLevel)
+	e.UpdateStatus("Submitting payment method", activityapi.LogLevel)
 
 	var cardType string
 
@@ -948,20 +947,20 @@ func (e *LVTask) submitPayment() {
 	} else if resp.StatusCode == 500 {
 		errorResp := string(resp.Body)
 		errorMsg := gjson.Get(errorResp, "errors.0.errorCode").String()
-		e.UpdateStatus(errorMsg, ActivityApi.LogLevel)
+		e.UpdateStatus(errorMsg, activityapi.LogLevel)
 		e.WaitM()
 		return
 
 	} else {
 
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}
 }
 
 func (e *LVTask) order() {
-	e.UpdateStatus("Submitting order", ActivityApi.LogLevel)
+	e.UpdateStatus("Submitting order", activityapi.LogLevel)
 
 	req := e.Client.NewRequest()
 	req.Url = "https://api.louisvuitton.com/api/eng-us/checkout/order/commit"
@@ -1018,18 +1017,18 @@ func (e *LVTask) order() {
 	} else if resp.StatusCode == 500 {
 		errorResp := string(resp.Body)
 		errorMsg := gjson.Get(errorResp, "errors.0.errorCode").String()
-		e.UpdateStatus(errorMsg, ActivityApi.LogLevel)
+		e.UpdateStatus(errorMsg, activityapi.LogLevel)
 		return
 
 	} else {
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}
 }
 
 func (e *LVTask) littyATC() {
-	e.UpdateStatus("Inverting cart marticies", ActivityApi.LogLevel) // quasi professional cart matrix inverter moment
+	e.UpdateStatus("Inverting cart marticies", activityapi.LogLevel) // quasi professional cart matrix inverter moment
 
 	payload := littyLoad{ // only SkuId and Quantity are necessary, other keys from default ATC were included as a precautionary measure
 		e.Product.Identifier,
@@ -1081,7 +1080,7 @@ func (e *LVTask) littyATC() {
 		return
 
 	} else {
-		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), ActivityApi.LogLevel)
+		e.UpdateStatus(fmt.Sprintf("Bad status code: %s", resp.Status), activityapi.LogLevel)
 		e.WaitR()
 		return
 	}

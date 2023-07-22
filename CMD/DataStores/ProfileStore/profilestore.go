@@ -1,21 +1,22 @@
-package ProfileStore
+package profilestore
 
 import (
-	"errors"
 	"fmt"
 
-	store "github.com/cicadaaio/LVBot/Internal/Helpers/DataStore"
-	"github.com/cicadaaio/LVBot/Internal/Profiles"
+	store "github.com/umasii/bot-framework/internal/helpers/datastore"
+	profiles "github.com/umasii/bot-framework/internal/profiles"
 
-	"github.com/cicadaaio/LVBot/Internal/Errors"
+	goErrors "errors"
+
+	errors "github.com/umasii/bot-framework/internal/errors"
 )
 
-var profileGroupList []*Profiles.ProfileGroup
+var profileGroupList []*profiles.ProfileGroup
 
-func AddProfile(profile *Profiles.Profile) error {
+func AddProfile(profile *profiles.Profile) error {
 	profileGroup, err := GetProfileGroupByID(profile.GroupID)
 	if err != nil {
-		return Errors.Handler(errors.New("Failed to Add Profile"))
+		return errors.Handler(goErrors.New("Failed to Add Profile"))
 	}
 	profile.ProfileID = getNextProfileID(&profileGroup.Profiles)
 	profileGroup.Profiles = append(profileGroup.Profiles, *profile)
@@ -23,27 +24,27 @@ func AddProfile(profile *Profiles.Profile) error {
 	return nil
 }
 
-func AddProfileGroup(profileGroup *Profiles.ProfileGroup) {
+func AddProfileGroup(profileGroup *profiles.ProfileGroup) {
 	profileGroups := GetProfileGroups()
 	profileGroup.GroupID = getNextProfileGroupID(&profileGroups)
 	if profileGroup.Profiles == nil {
-		profileGroup.Profiles = []Profiles.Profile{}
+		profileGroup.Profiles = []profiles.Profile{}
 	}
 	profileGroups = append(profileGroups, *profileGroup)
 	store.Write(&profileGroups, "profiles")
 }
 
-func GetProfileGroups() []Profiles.ProfileGroup {
-	var existingProfileGroups []Profiles.ProfileGroup
+func GetProfileGroups() []profiles.ProfileGroup {
+	var existingProfileGroups []profiles.ProfileGroup
 	store.Read(&existingProfileGroups, "profiles")
 	return existingProfileGroups
 }
 
-func GetProfileByID(groupID, profileID int) (*Profiles.Profile, error) {
+func GetProfileByID(groupID, profileID int) (*profiles.Profile, error) {
 	profileGroup, err := GetProfileGroupByID(groupID)
 
 	if err != nil {
-		return nil, Errors.Handler(errors.New(fmt.Sprintf("Could not locate Profile Group (GroupID: %v)", groupID)))
+		return nil, errors.Handler(goErrors.New(fmt.Sprintf("Could not locate Profile Group (GroupID: %v)", groupID)))
 	}
 
 	for i := range profileGroup.Profiles {
@@ -52,21 +53,21 @@ func GetProfileByID(groupID, profileID int) (*Profiles.Profile, error) {
 		}
 	}
 
-	return nil, Errors.Handler(errors.New(fmt.Sprintf("Could not locate Profile (GroupID: %v, ProfileID: %v)", groupID, profileID)))
+	return nil, errors.Handler(goErrors.New(fmt.Sprintf("Could not locate Profile (GroupID: %v, ProfileID: %v)", groupID, profileID)))
 
 }
 
-func GetProfileGroupByID(profileGroupID int) (*Profiles.ProfileGroup, error) {
+func GetProfileGroupByID(profileGroupID int) (*profiles.ProfileGroup, error) {
 	store.Read(&profileGroupList, "profiles")
 	for i := range profileGroupList {
 		if profileGroupList[i].GroupID == profileGroupID {
 			return profileGroupList[i], nil
 		}
 	}
-	return nil, Errors.Handler(errors.New(fmt.Sprintf("Profile Group with ID %v was not found", profileGroupID)))
+	return nil, errors.Handler(goErrors.New(fmt.Sprintf("Profile Group with ID %v was not found", profileGroupID)))
 }
 
-func getNextProfileID(profiles *[]Profiles.Profile) int {
+func getNextProfileID(profiles *[]profiles.Profile) int {
 	if len(*profiles) > 0 {
 		lastProfile := (*profiles)[len(*profiles)-1]
 		return lastProfile.ProfileID + 1
@@ -74,7 +75,7 @@ func getNextProfileID(profiles *[]Profiles.Profile) int {
 	return 1
 }
 
-func getNextProfileGroupID(profileGroups *[]Profiles.ProfileGroup) int {
+func getNextProfileGroupID(profileGroups *[]profiles.ProfileGroup) int {
 	if len(*profileGroups) > 0 {
 		lastProfileGroup := (*profileGroups)[len(*profileGroups)-1]
 		return lastProfileGroup.GroupID + 1

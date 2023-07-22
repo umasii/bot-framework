@@ -1,4 +1,4 @@
-package MonitorEngine
+package monitorengine
 
 import (
 	"fmt"
